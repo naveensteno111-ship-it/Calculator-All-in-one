@@ -1,0 +1,107 @@
+package com.example.util
+
+enum class AppLanguage(val code: String, val displayName: String, val nativeName: String) {
+    ENGLISH("en", "English", "English"),
+    HINDI("hi", "Hindi", "हिन्दी")
+}
+
+object AppStrings {
+    private val enMap = mapOf(
+        "app_title" to "SmartCalc",
+        "app_subtitle" to "All-in-One Calculator",
+        "home" to "Home",
+        "calculators" to "Calculators",
+        "history" to "History",
+        "favorites" to "Favorites",
+        "settings" to "Settings",
+        "search_hint" to "Search any calculator...",
+        "popular_calculators" to "Popular Calculators",
+        "all_calculators" to "All Calculators",
+        "category_finance" to "Finance",
+        "category_tax_business" to "Tax & Business",
+        "category_currency" to "Currency",
+        "category_general" to "General",
+        "category_units" to "Unit Converter",
+        "calculate" to "Calculate",
+        "reset" to "Reset",
+        "save" to "Save",
+        "saved" to "Saved to History",
+        "share" to "Share",
+        "copied" to "Copied to clipboard",
+        "copy" to "Copy",
+        "disclaimer_title" to "Financial Disclaimer",
+        "disclaimer_text" to "This calculator provides estimates for informational and educational purposes only. Actual returns, interest rates, taxes, investment performance and financial outcomes may vary. This app does not provide financial, investment, tax or legal advice.",
+        "mf_disclaimer" to "Calculated returns are estimates based on expected return rate. Mutual fund investments are subject to market risks.",
+        "years" to "Years",
+        "months" to "Months",
+        "days" to "Days",
+        "clear_history" to "Clear All History",
+        "no_history" to "No calculation history yet",
+        "no_favorites" to "No favorite calculators marked yet",
+        "theme" to "Theme",
+        "theme_system" to "System Default",
+        "theme_light" to "Light Mode",
+        "theme_dark" to "Dark Mode",
+        "language" to "Language",
+        "number_format" to "Number Format",
+        "number_format_indian" to "Indian (1,00,000)",
+        "number_format_standard" to "Standard (100,000)",
+        "currency_pref" to "Default Currency",
+        "about" to "About SmartCalc",
+        "version" to "Version 1.0.0",
+        "pro_version" to "Upgrade to Pro",
+        "pro_desc" to "Ad-free experience, unlimited history & export reports"
+    )
+
+    private val hiMap = mapOf(
+        "app_title" to "स्मार्टकैल्क",
+        "app_subtitle" to "ऑल-इन-वन कैलकुलेटर",
+        "home" to "होम",
+        "calculators" to "कैलकुलेटर",
+        "history" to "इतिहास",
+        "favorites" to "पसंदीदा",
+        "settings" to "सेटिंग्स",
+        "search_hint" to "कोई भी कैलकुलेटर खोजें...",
+        "popular_calculators" to "लोकप्रिय कैलकुलेटर",
+        "all_calculators" to "सभी कैलकुलेटर",
+        "category_finance" to "फाइनेंस (वित्त)",
+        "category_tax_business" to "टैक्स और व्यापार",
+        "category_currency" to "मुद्रा (करेंसी)",
+        "category_general" to "सामान्य",
+        "category_units" to "इकाई परिवर्तक (यूनिट)",
+        "calculate" to "गणना करें",
+        "reset" to "रीसेट",
+        "save" to "सहेजें",
+        "saved" to "इतिहास में सहेजा गया",
+        "share" to "शेयर करें",
+        "copied" to "क्लिपबोर्ड पर कॉपी किया गया",
+        "copy" to "कॉपी करें",
+        "disclaimer_title" to "वित्तीय अस्वीकरण",
+        "disclaimer_text" to "यह कैलकुलेटर केवल सूचनात्मक और शैक्षिक उद्देश्यों के लिए अनुमान प्रदान करता है। वास्तविक रिटर्न, ब्याज दरें, कर और परिणाम भिन्न हो सकते हैं। यह ऐप वित्तीय सलाह नहीं देता है।",
+        "mf_disclaimer" to "गणना किए गए रिटर्न केवल अनुमान हैं। म्यूचुअल फंड निवेश बाजार जोखिमों के अधीन हैं।",
+        "years" to "वर्ष",
+        "months" to "महीने",
+        "days" to "दिन",
+        "clear_history" to "सारा इतिहास साफ़ करें",
+        "no_history" to "अभी तक कोई इतिहास नहीं है",
+        "no_favorites" to "कोई पसंदीदा कैलकुलेटर नहीं चुना गया",
+        "theme" to "थीम",
+        "theme_system" to "सिस्टम डिफ़ॉल्ट",
+        "theme_light" to "लाइट मोड",
+        "theme_dark" to "डार्क मोड",
+        "language" to "भाषा (Language)",
+        "number_format" to "संख्या प्रारूप",
+        "number_format_indian" to "भारतीय (1,00,000)",
+        "number_format_standard" to "मानक (100,000)",
+        "currency_pref" to "डिफ़ॉल्ट मुद्रा",
+        "about" to "स्मार्टकैल्क के बारे में",
+        "version" to "संस्करण 1.0.0",
+        "pro_version" to "प्रो में अपग्रेड करें",
+        "pro_desc" to "विज्ञापन मुक्त अनुभव, असीमित इतिहास और रिपोर्ट"
+    )
+
+    fun get(key: String, language: AppLanguage = AppLanguage.ENGLISH): String {
+        val map = if (language == AppLanguage.HINDI) hiMap else enMap
+        return map[key] ?: enMap[key] ?: key
+    }
+}

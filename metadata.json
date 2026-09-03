@@ -1,0 +1,6 @@
+{
+  "name": "SmartCalc",
+  "description": "SmartCalc – All-in-One Calculator with financial, tax, currency, unit, and scientific calculators.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
