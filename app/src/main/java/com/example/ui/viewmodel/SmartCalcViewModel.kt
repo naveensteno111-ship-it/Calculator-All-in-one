@@ -12,6 +12,7 @@ import com.example.data.repository.AppRepository
 import com.example.data.repository.CurrencyState
 import com.example.domain.CalculatorItem
 import com.example.domain.CalculatorRegistry
+import com.example.domain.PremiumFeature
 import com.example.util.AppLanguage
 import com.example.util.NumberFormatType
 import com.example.util.SubscriptionManager
@@ -56,6 +57,8 @@ class SmartCalcViewModel(application: Application) : AndroidViewModel(applicatio
 
     val proPaymentId: StateFlow<String> = subscriptionManager.paymentTransactionIdFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
+    val subscriptionState = subscriptionManager.subscriptionState
 
     private val _currencyState = MutableStateFlow(CurrencyState())
     val currencyState: StateFlow<CurrencyState> = _currencyState.asStateFlow()
