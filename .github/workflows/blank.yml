@@ -1,0 +1,135 @@
+name: Build APK & App Bundle
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'What would you like to build?'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - 'both'
+          - 'apk'
+          - 'bundle'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk-and-bundle:
+    name: Build APK & App Bundle (.aab)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Make Gradle executable
+        run: chmod +x gradlew
+
+      - name: Ensure Debug Keystore
+        run: |
+          if [ ! -f debug.keystore ]; then
+            echo "Generating debug keystore for reproducible signing..."
+            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          fi
+      - name: Build Debug APK
+        if: github.event.inputs.build_type == 'both' || github.event.inputs.build_type == 'apk' || github.event_name != 'workflow_dispatch'
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Verify Debug APK
+        if: github.event.inputs.build_type == 'both' || github.event.inputs.build_type == 'apk' || github.event_name != 'workflow_dispatch'
+        run: |
+          if [ ! -f app/build/outputs/apk/debug/app-debug.apk ]; then
+            echo "::error::Debug APK not found at app/build/outputs/apk/debug/app-debug.apk"
+            exit 1
+          fi
+          echo "Debug APK successfully built at app/build/outputs/apk/debug/app-debug.apk"
+          ls -lh app/build/outputs/apk/debug/
+      - name: Upload Debug APK Artifact
+        if: github.event.inputs.build_type == 'both' || github.event.inputs.build_type == 'apk' || github.event_name != 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: MusicBox-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Build Debug App Bundle (.aab)
+        if: github.event.inputs.build_type == 'both' || github.event.inputs.build_type == 'bundle' || github.event_name != 'workflow_dispatch'
+        run: ./gradlew bundleDebug --no-daemon --stacktrace
+
+      - name: Verify Debug App Bundle
+        if: github.event.inputs.build_type == 'both' || github.event.inputs.build_type == 'bundle' || github.event_name != 'workflow_dispatch'
+        run: |
+          if [ ! -f app/build/outputs/bundle/debug/app-debug.aab ]; then
+            echo "::error::App Bundle not found at app/build/outputs/bundle/debug/app-debug.aab"
+            exit 1
+          fi
+          echo "App Bundle successfully built at app/build/outputs/bundle/debug/app-debug.aab"
+          ls -lh app/build/outputs/bundle/debug/
+      - name: Upload App Bundle (.aab) Artifact
+        if: github.event.inputs.build_type == 'both' || github.event.inputs.build_type == 'bundle' || github.event_name != 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: MusicBox-app-bundle-aab
+          path: app/build/outputs/bundle/debug/app-debug.aab
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Prepare Direct Install APK & Bundle
+        if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.event_name == 'workflow_dispatch') && github.event_name != 'pull_request'
+        run: |
+          mkdir -p release-assets
+          if [ -f app/build/outputs/apk/debug/app-debug.apk ]; then
+            cp app/build/outputs/apk/debug/app-debug.apk release-assets/MusicBox.apk
+          fi
+          if [ -f app/build/outputs/bundle/debug/app-debug.aab ]; then
+            cp app/build/outputs/bundle/debug/app-debug.aab release-assets/MusicBox.aab
+          fi
+          ls -la release-assets/
+      - name: Publish Direct Install Release on GitHub
+        if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.event_name == 'workflow_dispatch') && github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0
+          name: "MusicBox v1.0.0 — Direct Android Phone Install"
+          body: |
+            ## 📱 Direct Android Phone Installation
+            
+            ### Quick Steps to Install on Your Android Phone:
+            1. **Download APK**: Tap on **[MusicBox.apk](https://github.com/${{ github.repository }}/releases/download/v1.0.0/MusicBox.apk)** below directly on your Android phone.
+            2. **Download Anyway**: If Android displays *"File might be harmful"*, tap **Download anyway**.
+            3. **Allow Installation**:
+               - When the download completes, tap **Open**.
+               - If your phone prompts: *"For your security, your phone is not allowed to install unknown apps from this source"*, tap **Settings** → toggle on **Allow from this source** → go back and tap **Install**.
+            4. **Enjoy**: Tap **Open** to launch MusicBox!
+            
+            ---
+            ### Files Included:
+            - **`MusicBox.apk`**: Direct standalone installer for all Android phones (Android 7.0+).
+            - **`MusicBox.aab`**: Google Play App Bundle for store publishing.
+          draft: false
+          prerelease: false
+          files: |
+            release-assets/MusicBox.apk
+            release-assets/MusicBox.aab
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
