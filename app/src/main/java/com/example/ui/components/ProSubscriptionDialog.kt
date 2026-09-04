@@ -16,12 +16,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.Button
@@ -32,19 +36,26 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -61,8 +72,14 @@ fun ProSubscriptionDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     val isProActive by viewModel.isProActive.collectAsState()
     val expiryTimestamp by viewModel.proExpiryTimestamp.collectAsState()
+    val proPaymentId by viewModel.proPaymentId.collectAsState()
+
+    var paymentIdInput by remember { mutableStateOf("") }
+    var inputError by remember { mutableStateOf<String?>(null) }
+    var isSubmitting by remember { mutableStateOf(false) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -92,23 +109,30 @@ fun ProSubscriptionDialog(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(20.dp))
-                            .background(Color(0xFFFBBF24).copy(alpha = 0.2f))
-                            .border(1.dp, Color(0xFFFBBF24), RoundedCornerShape(20.dp))
+                            .background(
+                                if (isProActive) Color(0xFF10B981).copy(alpha = 0.2f)
+                                else Color(0xFFFBBF24).copy(alpha = 0.2f)
+                            )
+                            .border(
+                                1.dp,
+                                if (isProActive) Color(0xFF10B981) else Color(0xFFFBBF24),
+                                RoundedCornerShape(20.dp)
+                            )
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = Icons.Default.Star,
+                                imageVector = if (isProActive) Icons.Default.Verified else Icons.Default.Lock,
                                 contentDescription = null,
-                                tint = Color(0xFFFBBF24),
+                                tint = if (isProActive) Color(0xFF10B981) else Color(0xFFFBBF24),
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = if (isProActive) "PRO ACTIVE" else "SMARTCALC PRO",
+                                text = if (isProActive) "PRO ACTIVE" else "PAYMENT REQUIRED",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFFFBBF24)
+                                color = if (isProActive) Color(0xFF10B981) else Color(0xFFFBBF24)
                             )
                         }
                     }
@@ -133,15 +157,21 @@ fun ProSubscriptionDialog(
                         .size(64.dp)
                         .clip(CircleShape)
                         .background(
-                            Brush.linearGradient(
-                                colors = listOf(Color(0xFFF59E0B), Color(0xFFD97706))
-                            )
+                            if (isProActive) {
+                                Brush.linearGradient(
+                                    colors = listOf(Color(0xFF10B981), Color(0xFF059669))
+                                )
+                            } else {
+                                Brush.linearGradient(
+                                    colors = listOf(Color(0xFFF59E0B), Color(0xFFD97706))
+                                )
+                            }
                         ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Star,
-                        contentDescription = "Pro Crown",
+                        imageVector = if (isProActive) Icons.Default.Verified else Icons.Default.Lock,
+                        contentDescription = "Subscription Status",
                         tint = Color.White,
                         modifier = Modifier.size(36.dp)
                     )
@@ -150,7 +180,7 @@ fun ProSubscriptionDialog(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
-                    text = if (isProActive) "You are a PRO Member!" else "Unlock SmartCalc PRO",
+                    text = if (isProActive) "You are a PRO Member!" else "Subscription Required",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -163,9 +193,9 @@ fun ProSubscriptionDialog(
                     text = if (isProActive) {
                         val expiryDate = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(expiryTimestamp))
                         val daysRemaining = ((expiryTimestamp - System.currentTimeMillis()) / (1000 * 60 * 60 * 24)).coerceAtLeast(0)
-                        "Active until $expiryDate ($daysRemaining days remaining)"
+                        "All features unlocked until $expiryDate\nRef: $proPaymentId ($daysRemaining days remaining)"
                     } else {
-                        "Unlock all advanced tools, amortization exports & pro calculators for 1 full year."
+                        "Without payment, features remain locked. Complete the ₹199/year payment to activate the entire application."
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -192,13 +222,13 @@ fun ProSubscriptionDialog(
                     ) {
                         Column {
                             Text(
-                                text = "1-Year Full Pass",
+                                text = "1-Year Full Access",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "365 days of unrestricted access",
+                                text = "365 days access to all calculators",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -222,24 +252,33 @@ fun ProSubscriptionDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Benefits List
+                // Features Unlocked
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    ProBenefitRow("Fixed Deposit (FD) Maturity & Compound Interest Pro")
-                    ProBenefitRow("Mutual Fund Planner (SIP, Lumpsum, CAGR & SWP)")
-                    ProBenefitRow("Live Global Multi-Currency Converter with 160+ Currencies")
+                    ProBenefitRow("All Financial Calculators (EMI, SIP, FD, RD, PPF, SWP, CAGR)")
+                    ProBenefitRow("Tax & Business Tools (GST, Income Tax, Salary, Profit/Loss)")
+                    ProBenefitRow("Live Global Multi-Currency Converter (160+ Currencies)")
                     ProBenefitRow("Stock & Crypto Profit Pro Calculator with tax slabs")
-                    ProBenefitRow("Full Year-wise Amortization & Investment Schedules")
-                    ProBenefitRow("Step-Up SIP & Comprehensive Retirement Planner")
+                    ProBenefitRow("Scientific Math, Percentage, Age & Unit Converters")
+                    ProBenefitRow("Detailed Year-wise Amortization & Investment Tables")
                     ProBenefitRow("100% Ad-Free Experience for 1 Full Year (365 Days)")
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(18.dp))
 
-                // Action Buttons
-                // 1. Pay via Razorpay Button
+                // Step 1: Pay via Razorpay
+                Text(
+                    text = "STEP 1: Complete Payment",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
                 Button(
                     onClick = {
                         viewModel.openRazorpayPayment(context)
@@ -247,7 +286,7 @@ fun ProSubscriptionDialog(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp)
+                        .height(48.dp)
                         .testTag("pro_pay_razorpay_button"),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
@@ -262,41 +301,101 @@ fun ProSubscriptionDialog(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Pay ₹199 via Razorpay",
+                        text = if (isProActive) "Pay ₹199 to Extend 1 Year" else "Pay ₹199 via Razorpay",
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp
                     )
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // 2. Activate Subscription Button
-                OutlinedButton(
-                    onClick = {
-                        viewModel.activateSubscription(365)
-                        Toast.makeText(
-                            context,
-                            "🎉 SmartCalc Pro activated successfully for 1 Year!",
-                            Toast.LENGTH_LONG
-                        ).show()
-                        onDismiss()
+                // Step 2: Payment Verification (Mandatory - No bypass)
+                Text(
+                    text = "STEP 2: Verify Payment to Activate",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                OutlinedTextField(
+                    value = paymentIdInput,
+                    onValueChange = {
+                        paymentIdInput = it
+                        inputError = null
                     },
                     modifier = Modifier
                         .fillMaxWidth()
+                        .testTag("pro_payment_id_input"),
+                    label = { Text("Razorpay Payment ID / Reference") },
+                    placeholder = { Text("e.g. pay_Q1w2e3r4t5y6 or UTR") },
+                    singleLine = true,
+                    isError = inputError != null,
+                    supportingText = {
+                        Text(
+                            text = inputError ?: "Found in your Razorpay payment confirmation screen or SMS/email",
+                            color = if (inputError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Button(
+                    onClick = {
+                        focusManager.clearFocus()
+                        val cleanId = paymentIdInput.trim()
+                        if (cleanId.length < 6) {
+                            inputError = "Please enter a valid Payment ID (at least 6 characters)"
+                            return@Button
+                        }
+                        isSubmitting = true
+                        viewModel.activateSubscriptionWithPayment(cleanId) { success, message ->
+                            isSubmitting = false
+                            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                            if (success) {
+                                onDismiss()
+                            } else {
+                                inputError = message
+                            }
+                        }
+                    },
+                    enabled = !isSubmitting,
+                    modifier = Modifier
+                        .fillMaxWidth()
                         .height(48.dp)
-                        .testTag("pro_activate_button"),
-                    shape = RoundedCornerShape(14.dp)
+                        .testTag("pro_verify_activate_button"),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
                 ) {
                     Icon(
-                        imageVector = if (isProActive) Icons.Default.Verified else Icons.Default.LockOpen,
+                        imageVector = Icons.Default.Verified,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (isProActive) "Extend 1-Year Access (+365 Days)" else "I've Completed Payment (Activate 1 Year)",
-                        fontWeight = FontWeight.SemiBold
+                        text = if (isSubmitting) "Verifying..." else "Verify Payment & Unlock Features",
+                        fontWeight = FontWeight.Bold
                     )
+                }
+
+                if (isProActive) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+                        Text("Continue Using App")
+                    }
                 }
             }
         }
@@ -313,7 +412,7 @@ private fun ProBenefitRow(text: String) {
             imageVector = Icons.Default.CheckCircle,
             contentDescription = null,
             tint = Color(0xFF10B981),
-            modifier = Modifier.size(18.dp)
+            modifier = Modifier.size(16.dp)
         )
         Spacer(modifier = Modifier.width(10.dp))
         Text(

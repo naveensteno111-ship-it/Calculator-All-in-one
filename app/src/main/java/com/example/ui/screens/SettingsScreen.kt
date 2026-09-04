@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.FormatListNumbered
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.OpenInNew
@@ -45,6 +46,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -54,6 +57,9 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -88,6 +94,9 @@ fun SettingsScreen(
     val defaultCurrency by viewModel.defaultCurrency.collectAsState()
     val isProActive by viewModel.isProActive.collectAsState()
     val proExpiryTimestamp by viewModel.proExpiryTimestamp.collectAsState()
+    val proPaymentId by viewModel.proPaymentId.collectAsState()
+    var paymentIdInput by remember { mutableStateOf("") }
+    var isSubmitting by remember { mutableStateOf(false) }
     val isSystemDark = isSystemInDarkTheme()
     val isDarkActive = when (currentTheme) {
         AppThemeMode.DARK -> true
@@ -173,15 +182,15 @@ fun SettingsScreen(
                             val expiryDate = SimpleDateFormat("dd MMMM yyyy", Locale.getDefault()).format(Date(proExpiryTimestamp))
                             val daysLeft = ((proExpiryTimestamp - System.currentTimeMillis()) / (1000 * 60 * 60 * 24)).coerceAtLeast(0)
                             Text(
-                                text = "Your subscription is currently active.\nValid until $expiryDate ($daysLeft days remaining).\nEnjoy unrestricted access to all Pro calculators, amortizations and PDF exports.",
+                                text = "Your subscription is currently active.\nValid until: $expiryDate ($daysLeft days remaining)\nPayment Ref: $proPaymentId\nAll 20+ calculators and premium tools unlocked.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color.White.copy(alpha = 0.95f)
                             )
                         } else {
                             Text(
-                                text = "• Stock & Crypto Profit Pro Calculator\n• Full Year-wise Amortization & PDF Exports\n• Step-Up SIP & FIRE Retirement Planners\n• 100% Ad-Free Experience for 1 Full Year",
+                                text = "🔒 Subscription Required: All features are locked until payment is verified.\nPay ₹199 via Razorpay to activate full 365-day access to all 20+ financial, tax & scientific calculators.",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color.White.copy(alpha = 0.9f)
+                                color = Color.White.copy(alpha = 0.95f)
                             )
                         }
 
@@ -203,39 +212,83 @@ fun SettingsScreen(
                             Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = if (isProActive) "Pay ₹199 via Razorpay (Renew / Extend)" else "Pay ₹199 via Razorpay (1-Year Pass)",
+                                text = if (isProActive) "Pay ₹199 to Renew / Extend (+365 Days)" else "Pay ₹199 via Razorpay",
                                 fontWeight = FontWeight.Bold
                             )
                         }
 
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Step 2: Enter Payment ID & Verify
+                        OutlinedTextField(
+                            value = paymentIdInput,
+                            onValueChange = { paymentIdInput = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Razorpay Payment ID / Reference") },
+                            placeholder = { Text("e.g. pay_xxxxx or UTR") },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedBorderColor = Color(0xFFFBBF24),
+                                unfocusedBorderColor = Color.White.copy(alpha = 0.6f),
+                                focusedLabelColor = Color(0xFFFBBF24),
+                                unfocusedLabelColor = Color.White.copy(alpha = 0.8f)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        // Button 2: Activate / Extend Subscription
-                        OutlinedButton(
+                        Button(
                             onClick = {
-                                viewModel.activateSubscription(365)
-                                Toast.makeText(
-                                    context,
-                                    "🎉 SmartCalc Pro 1-Year Subscription Activated!",
-                                    Toast.LENGTH_LONG
-                                ).show()
+                                val cleanId = paymentIdInput.trim()
+                                if (cleanId.length < 6) {
+                                    Toast.makeText(context, "Please enter a valid Payment ID (at least 6 characters)", Toast.LENGTH_SHORT).show()
+                                    return@Button
+                                }
+                                isSubmitting = true
+                                viewModel.activateSubscriptionWithPayment(cleanId) { success, message ->
+                                    isSubmitting = false
+                                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                                    if (success) {
+                                        paymentIdInput = ""
+                                    }
+                                }
                             },
+                            enabled = !isSubmitting,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isProActive) Color(0xFF10B981) else Color(0xFF0284C7),
                                 contentColor = Color.White
                             )
                         ) {
                             Icon(
-                                if (isProActive) Icons.Default.Verified else Icons.Default.LockOpen,
+                                if (isProActive) Icons.Default.Verified else Icons.Default.Lock,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = if (isProActive) "Add Another Year (+365 Days)" else "I've Completed Payment (Activate 1 Year)",
-                                fontWeight = FontWeight.SemiBold
+                                text = if (isSubmitting) "Verifying..." else if (isProActive) "Verify & Extend Subscription" else "Verify Payment & Unlock Features",
+                                fontWeight = FontWeight.Bold
                             )
+                        }
+
+                        if (isProActive) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            OutlinedButton(
+                                onClick = {
+                                    viewModel.cancelSubscription()
+                                    Toast.makeText(context, "Subscription reset.", Toast.LENGTH_SHORT).show()
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White.copy(alpha = 0.7f))
+                            ) {
+                                Text("Reset / Lock Subscription", fontSize = 12.sp)
+                            }
                         }
                     }
                 }

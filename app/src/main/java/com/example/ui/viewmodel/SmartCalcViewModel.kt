@@ -54,6 +54,9 @@ class SmartCalcViewModel(application: Application) : AndroidViewModel(applicatio
     val proExpiryTimestamp: StateFlow<Long> = subscriptionManager.expiryTimestampFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
 
+    val proPaymentId: StateFlow<String> = subscriptionManager.paymentTransactionIdFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
     private val _currencyState = MutableStateFlow(CurrencyState())
     val currencyState: StateFlow<CurrencyState> = _currencyState.asStateFlow()
 
@@ -103,10 +106,24 @@ class SmartCalcViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    fun activateSubscription(durationDays: Long = 365) {
+    fun activateSubscriptionWithPayment(
+        paymentId: String,
+        durationDays: Long = 365,
+        onResult: (Boolean, String) -> Unit
+    ) {
+        val cleanId = paymentId.trim()
+        if (cleanId.length < 6) {
+            onResult(false, "Please enter a valid Razorpay Payment ID or Transaction Reference (e.g. pay_xxxxx)")
+            return
+        }
         viewModelScope.launch {
-            subscriptionManager.activateSubscription(durationDays)
-            repository.preferencesManager.activateSubscription(durationDays)
+            val success = subscriptionManager.activateSubscriptionWithPayment(cleanId, durationDays)
+            repository.preferencesManager.activateSubscriptionWithPayment(cleanId, durationDays)
+            if (success) {
+                onResult(true, "🎉 Payment verified! SmartCalc Pro activated for 1 Year.")
+            } else {
+                onResult(false, "Invalid Payment ID. Please check your payment receipt.")
+            }
         }
     }
 

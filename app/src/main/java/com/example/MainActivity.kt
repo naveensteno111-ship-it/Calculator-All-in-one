@@ -1,6 +1,8 @@
 package com.example
 
+import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -23,6 +25,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        handlePaymentIntent(intent)
         setContent {
             val themeMode by viewModel.themeMode.collectAsState()
 
@@ -37,6 +40,23 @@ class MainActivity : ComponentActivity() {
                         viewModel = viewModel
                     )
                 }
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handlePaymentIntent(intent)
+    }
+
+    private fun handlePaymentIntent(intent: Intent?) {
+        val uri = intent?.data ?: return
+        val paymentId = uri.getQueryParameter("payment_id")
+            ?: uri.getQueryParameter("razorpay_payment_id")
+            ?: uri.getQueryParameter("id")
+        if (!paymentId.isNullOrBlank()) {
+            viewModel.activateSubscriptionWithPayment(paymentId) { success, msg ->
+                Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
             }
         }
     }

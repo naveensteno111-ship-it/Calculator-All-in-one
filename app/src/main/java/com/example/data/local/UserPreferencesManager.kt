@@ -31,12 +31,14 @@ class UserPreferencesManager(private val context: Context) {
         private val IS_PRO_ACTIVE_KEY = booleanPreferencesKey("pref_is_pro_active")
         private val PRO_EXPIRY_TIMESTAMP_KEY = longPreferencesKey("pref_pro_expiry_timestamp")
         private val PRO_ACTIVATION_TIMESTAMP_KEY = longPreferencesKey("pref_pro_activation_timestamp")
+        private val PRO_PAYMENT_ID_KEY = stringPreferencesKey("pref_pro_payment_transaction_id")
     }
 
     val isProActiveFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
         val isActive = prefs[IS_PRO_ACTIVE_KEY] ?: false
         val expiry = prefs[PRO_EXPIRY_TIMESTAMP_KEY] ?: 0L
-        isActive && (expiry > System.currentTimeMillis())
+        val paymentId = prefs[PRO_PAYMENT_ID_KEY]
+        isActive && (expiry > System.currentTimeMillis()) && !paymentId.isNullOrBlank()
     }
 
     val proExpiryTimestampFlow: Flow<Long> = context.dataStore.data.map { prefs ->
@@ -45,6 +47,10 @@ class UserPreferencesManager(private val context: Context) {
 
     val proActivationTimestampFlow: Flow<Long> = context.dataStore.data.map { prefs ->
         prefs[PRO_ACTIVATION_TIMESTAMP_KEY] ?: 0L
+    }
+
+    val proPaymentIdFlow: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[PRO_PAYMENT_ID_KEY] ?: ""
     }
 
     val themeModeFlow: Flow<AppThemeMode> = context.dataStore.data.map { prefs ->
@@ -114,14 +120,18 @@ class UserPreferencesManager(private val context: Context) {
         }
     }
 
-    suspend fun activateSubscription(durationDays: Long = 365) {
+    suspend fun activateSubscriptionWithPayment(paymentId: String, durationDays: Long = 365): Boolean {
+        val cleanId = paymentId.trim()
+        if (cleanId.length < 6) return false
         val now = System.currentTimeMillis()
         val expiryTime = now + (durationDays * 24L * 60L * 60L * 1000L)
         context.dataStore.edit { prefs ->
             prefs[IS_PRO_ACTIVE_KEY] = true
             prefs[PRO_ACTIVATION_TIMESTAMP_KEY] = now
             prefs[PRO_EXPIRY_TIMESTAMP_KEY] = expiryTime
+            prefs[PRO_PAYMENT_ID_KEY] = cleanId
         }
+        return true
     }
 
     suspend fun cancelSubscription() {
@@ -129,6 +139,7 @@ class UserPreferencesManager(private val context: Context) {
             prefs[IS_PRO_ACTIVE_KEY] = false
             prefs[PRO_ACTIVATION_TIMESTAMP_KEY] = 0L
             prefs[PRO_EXPIRY_TIMESTAMP_KEY] = 0L
+            prefs[PRO_PAYMENT_ID_KEY] = ""
         }
     }
 }
